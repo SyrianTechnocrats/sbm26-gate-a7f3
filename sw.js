@@ -1,6 +1,7 @@
 /* Offline cache for the Technocrats attendance scanner (Syrian Biomedica 2026).
-   Everything the app needs is inside index.html, so the cache stays tiny and simple. */
-var CACHE = 'sbm26-attendance-v2';
+   v3: index.html is NETWORK-FIRST (falls back to cache offline) so roster updates
+   reach installed phones automatically; static assets stay cache-first. */
+var CACHE = 'sbm26-attendance-v3';
 var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -24,14 +25,38 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+function isAppShell(req) {
+  if (req.mode === 'navigate') return true;
+  var p = new URL(req.url).pathname;
+  return p.endsWith('/index.html') || p.endsWith('/sbm26-gate-a7f3/') || p.endsWith('/sbm26-gate-a7f3');
+}
+
 self.addEventListener('fetch', function (e) {
   var req = e.request;
 
-  // Never touch the sync POSTs to Google Apps Script — they must always hit the network,
-  // and a cached/replayed response would corrupt the synced/unsynced bookkeeping.
+  // Never touch the sync POSTs to Google Apps Script — they must always hit the network.
   if (req.method !== 'GET') return;
   if (new URL(req.url).origin !== self.location.origin) return;
 
+  if (isAppShell(req)) {
+    // network-first: updates arrive whenever the phone is online; offline still works
+    e.respondWith(
+      fetch(req).then(function (res) {
+        if (res && res.ok) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) {
+            c.put('./index.html', copy);
+          }).catch(function () {});
+        }
+        return res;
+      }).catch(function () {
+        return caches.match('./index.html');
+      })
+    );
+    return;
+  }
+
+  // static assets: cache-first
   e.respondWith(
     caches.match(req, { ignoreSearch: true }).then(function (hit) {
       if (hit) return hit;
@@ -42,7 +67,6 @@ self.addEventListener('fetch', function (e) {
         }
         return res;
       }).catch(function () {
-        // Offline and not cached: fall back to the app shell so navigations still work.
         return caches.match('./index.html');
       });
     })
