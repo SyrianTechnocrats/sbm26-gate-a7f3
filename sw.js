@@ -1,7 +1,7 @@
 /* Offline cache for the Technocrats attendance scanner (Syrian Biomedica 2026).
-   v3: index.html is NETWORK-FIRST (falls back to cache offline) so roster updates
+   v4: index.html is NETWORK-FIRST (falls back to cache offline) so roster updates
    reach installed phones automatically; static assets stay cache-first. */
-var CACHE = 'sbm26-attendance-v3';
+var CACHE = 'sbm26-attendance-v4';
 var ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 
 self.addEventListener('install', function (e) {
